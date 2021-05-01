@@ -1,5 +1,16 @@
 """
-Add a barcode to a pdf
+Add a Code 128A barcode to another PDF.
+
+Basic usage:
+    combiner = AppendBarcode(save_path="output/")
+    combiner.add_barcode("Barcode", path/to/original/doc)
+
+The Barcode generator is provided in a distinct class to allow it to be used to generate stand alone
+barcode PDFs if required.
+
+Basic usage:
+    generator = Barcode()
+    generator.generate_barcode("Barcode")
 
 """
 
@@ -15,22 +26,25 @@ from reportlab.pdfbase.ttfonts import TTFont
 class Barcode:
     """Generate a PDF document with containing a barcode"""
 
-    def __init__(self, size=(30, 15), fontsize=8):
+    def __init__(self, size=(30, 15), font_size=8, barcode_font_size=24):
         """
         :param size: length by width in mm
         :type size: tuple
-        :param fontsize: Size of the human readable section
-        :type fontsize: int
+        :param font_size: Size of the human readable text in pt
+        :type font_size: int
+        :param barcode_font_size: Size of the barcode in pt
+        :type barcode_font_size: int
         """
         self._temp_path = 'barcode_temp.pdf'
         self._document = None
-        self._fontsize = fontsize
+        self._font_size = font_size
+        self._barcode_font_size = barcode_font_size
         self._pagesize = (size[0] * mm, size[1] * mm)
         pdfmetrics.registerFont(TTFont('Barcode', 'font/Code128400.ttf'))
 
     def _writetext(self, barcode):
         """Write the human readable section"""
-        self._document.setFont("Helvetica", self._fontsize)
+        self._document.setFont("Helvetica", self._font_size)
         self._document.drawCentredString(self._pagesize[0] / 2,
                                          2 * mm,
                                          barcode
@@ -41,7 +55,7 @@ class Barcode:
         self._document.setFont("Barcode", 24)
         barcode_string = f"{chr(203)}{barcode}{self._checksum(barcode)}{chr(206)}"
         self._document.drawCentredString(self._pagesize[0] / 2,
-                                         5*mm,
+                                         5 * mm,
                                          barcode_string
                                          )
 
@@ -61,7 +75,8 @@ class Barcode:
         """
         Build the barcode PDF
         :param barcode:
-        :return:
+        :return: path to the file.  Its going to be the same, but its just convenient to pass it back
+        to the add_barcode function in the AppendBarcode class
         """
         self._document = canvas.Canvas(self._temp_path, pagesize=(self._pagesize[0], self._pagesize[1]))
         self._writetext(barcode.upper())
@@ -75,6 +90,7 @@ class AppendBarcode:
     def __init__(self, save_path="."):
         """
 
+        :param save_path: Defaults to pwd.
         """
         self.save_path = save_path
         self.barcode_doc = Barcode()
@@ -82,6 +98,13 @@ class AppendBarcode:
             os.mkdir(save_path)
 
     def add_barcode(self, barcode, original_path):
+        """
+        Adds a barcode to the first page of a document
+
+        :param barcode: Barcode to add to the file specified in original_path
+        :param original_path: Path to the original file.
+        :return:
+        """
         merger = PyPDF3.PdfFileReader(original_path)
         barcode_doc = PyPDF3.PdfFileReader(self.barcode_doc.generate_barcode(barcode)).getPage(0)
         first_page = merger.getPage(0)
