@@ -15,7 +15,7 @@ from reportlab.pdfbase.ttfonts import TTFont
 class Barcode:
     """Generate a PDF document with containing a barcode"""
 
-    def __init__(self, size=(50, 20), fontsize=8):
+    def __init__(self, size=(30, 15), fontsize=8):
         """
         :param size: length by width in mm
         :type size: tuple
@@ -25,25 +25,25 @@ class Barcode:
         self._temp_path = 'barcode_temp.pdf'
         self._document = None
         self._fontsize = fontsize
-        self._pagesize = size
+        self._pagesize = (size[0] * mm, size[1] * mm)
         pdfmetrics.registerFont(TTFont('Barcode', 'font/Code128400.ttf'))
 
     def _writetext(self, barcode):
         """Write the human readable section"""
         self._document.setFont("Helvetica", self._fontsize)
-        self._document.drawString(self._pagesize[0],
-                                  self._pagesize[1] / 2,
-                                  barcode
-                                  )
+        self._document.drawCentredString(self._pagesize[0] / 2,
+                                         2 * mm,
+                                         barcode
+                                         )
 
     def _writebarcode(self, barcode):
         """Write the machine readable section"""
         self._document.setFont("Barcode", 24)
         barcode_string = f"{chr(203)}{barcode}{self._checksum(barcode)}{chr(206)}"
-        self._document.drawString(self._pagesize[0] / 2,
-                                  self._pagesize[1] - 2,
-                                  barcode_string
-                                  )
+        self._document.drawCentredString(self._pagesize[0] / 2,
+                                         5*mm,
+                                         barcode_string
+                                         )
 
     def _checksum(self, barcodestring):
         """Calculate the checksum
@@ -63,7 +63,7 @@ class Barcode:
         :param barcode:
         :return:
         """
-        self._document = canvas.Canvas(self._temp_path, pagesize=(self._pagesize[0] * mm, self._pagesize[1] * mm))
+        self._document = canvas.Canvas(self._temp_path, pagesize=(self._pagesize[0], self._pagesize[1]))
         self._writetext(barcode.upper())
         self._writebarcode(barcode.upper())
         self._document.showPage()
@@ -98,7 +98,7 @@ class AppendBarcode:
 
 if __name__ == '__main__':
     # generator = Barcode()
-    # generator.generate_barcode("T0S0ABCD")
+    # generator.generate_barcode("TWWWWWWW")
     from string import ascii_letters
     import random
     combiner = AppendBarcode(save_path="output/")
