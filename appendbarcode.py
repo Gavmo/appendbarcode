@@ -87,7 +87,7 @@ class Barcode:
 
 
 class AppendBarcode:
-    def __init__(self, save_path="."):
+    def __init__(self, save_path=".", page_orient='portrait'):
         """
 
         :param save_path: Defaults to pwd.
@@ -96,20 +96,34 @@ class AppendBarcode:
         self.barcode_doc = Barcode()
         if not os.path.exists(save_path):
             os.mkdir(save_path)
+        if page_orient == 'portrait':
+            self.page_dimension = (210.0, 297.0)
+        elif page_orient == 'landscape':
+            self.page_dimension = (297.0, 210.0)
+        else:
+            raise AttributeError(f"Only accepts portrait or landscape for page_orient param. You used {page_orient}")
 
-    def add_barcode(self, barcode, original_path):
+    def get_y_pos(self, page_y_dimension, barcode_location):
+        return float((float(barcode_location) / self.page_dimension[1]) * float(page_y_dimension))
+
+    def add_barcode(self, barcode, original_path, x_pos=None, y_pos=None):
         """
         Adds a barcode to the first page of a document
 
         :param barcode: Barcode to add to the file specified in original_path
         :param original_path: Path to the original file.
+        :param y_pos: Position of the bottom of the barcode measure in mm from the bottom of the page.
         :return:
         """
         merger = PyPDF3.PdfFileReader(original_path)
         barcode_doc = PyPDF3.PdfFileReader(self.barcode_doc.generate_barcode(barcode)).getPage(0)
         first_page = merger.getPage(0)
+        if y_pos is not None:
+            barcode_target_y = self.get_y_pos(first_page.mediaBox[3], y_pos)
+        else:
+            barcode_target_y = 0
         centre_pos = float(first_page.mediaBox[2]) / 2 - float(barcode_doc.mediaBox[2]) / 2
-        first_page.mergeTranslatedPage(barcode_doc, centre_pos, 0)
+        first_page.mergeTranslatedPage(barcode_doc, centre_pos, barcode_target_y)
         out = PyPDF3.PdfFileWriter()
         out.addPage(first_page)
         [out.addPage(page) for page in merger.pages[1:]]
@@ -117,6 +131,8 @@ class AppendBarcode:
         output_filename = f"{self.save_path}/{filename}_{barcode}_coded.pdf"
         with open(output_filename, 'wb') as output:
             out.write(output)
+
+
 
 
 if __name__ == '__main__':
@@ -130,5 +146,5 @@ if __name__ == '__main__':
     for filen in os.listdir(look_in):
         print(look_in + filen)
         randbarcode = "T" + "".join([rand_char(x) for x in range(0, 7)])
-        combiner.add_barcode(randbarcode, look_in + filen)
+        combiner.add_barcode(randbarcode, look_in + filen, y_pos=280)
     os.remove("barcode_temp.pdf")
